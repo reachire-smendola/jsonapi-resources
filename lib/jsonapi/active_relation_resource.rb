@@ -428,9 +428,13 @@ module JSONAPI
               klass = resource_klass_for(resource_type)
               linkage_fields << {relationship_name: name, resource_klass: klass}
 
+              begin
               linkage_table_alias = join_manager.join_details_by_polymorphic_relationship(linkage_relationship, resource_type)[:alias]
               primary_key = klass._primary_key
               pluck_fields << Arel.sql("#{concat_table_field(linkage_table_alias, primary_key)} AS #{linkage_table_alias}_#{primary_key}")
+              rescue
+                Rails.logger.error('error')
+              end
             end
           else
             klass = linkage_relationship.resource_klass
