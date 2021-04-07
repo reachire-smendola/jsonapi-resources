@@ -13,7 +13,7 @@ class PostWithBadAfterSave < ActiveRecord::Base
   after_save :do_some_after_save_stuff
 
   def do_some_after_save_stuff
-    errors[:base] << 'Boom! Error added in after_save callback.'
+    errors.add(:base, 'Boom! Error added in after_save callback.')
     raise ActiveRecord::RecordInvalid.new(self)
   end
 end
@@ -23,7 +23,7 @@ class PostWithCustomValidationContext < ActiveRecord::Base
   validate :api_specific_check, on: :json_api_create
 
   def api_specific_check
-    errors[:base] << 'Record is invalid'
+    errors.add(:base, 'Record is invalid')
   end
 end
 
@@ -173,15 +173,14 @@ class ResourceTest < ActiveSupport::TestCase
     refute PersonResource._abstract
   end
 
+  def test_inherited_calls_superclass
+    assert_equal(BaseResource.subclasses, [PersonResource, SpecialBaseResource])
+  end
+
   def test_nil_model_class
-    # ToDo:Figure out why this test does not work on Rails 4.0
-    # :nocov:
-    if (Rails::VERSION::MAJOR >= 4 && Rails::VERSION::MINOR >= 1) || (Rails::VERSION::MAJOR >= 5)
-      assert_output nil, "[MODEL NOT FOUND] Model could not be found for NoMatchResource. If this is a base Resource declare it as abstract.\n" do
-        assert_nil NoMatchResource._model_class
-      end
+    assert_output nil, "[MODEL NOT FOUND] Model could not be found for NoMatchResource. If this is a base Resource declare it as abstract.\n" do
+      assert_nil NoMatchResource._model_class
     end
-    # :nocov:
   end
 
   def test_nil_abstract_model_class
@@ -268,16 +267,16 @@ class ResourceTest < ActiveSupport::TestCase
   def test_to_many_relationship_filters
     post_resource = PostResource.new(Post.find(1), nil)
 
-    comments = PostResource.find_included_fragments([post_resource.identity], :comments, {})
+    comments = PostResource.find_included_fragments([post_resource], :comments, {})
     assert_equal(2, comments.size)
 
-    filtered_comments = PostResource.find_included_fragments([post_resource.identity], :comments, { filters: { body: 'i liked it' } })
+    filtered_comments = PostResource.find_included_fragments([post_resource], :comments, { filters: { body: 'i liked it' } })
     assert_equal(1, filtered_comments.size)
   end
 
   def test_to_many_relationship_sorts
     post_resource = PostResource.new(Post.find(1), nil)
-    comment_ids = post_resource.class.find_included_fragments([post_resource.identity], :comments, {}).keys.collect {|c| c.id }
+    comment_ids = post_resource.class.find_included_fragments([post_resource], :comments, {}).keys.collect {|c| c.id }
     assert_equal [1,2], comment_ids
 
     # define apply_filters method on post resource to sort descending
@@ -291,7 +290,7 @@ class ResourceTest < ActiveSupport::TestCase
     end
 
     sorted_comment_ids = post_resource.class.find_included_fragments(
-        [post_resource.identity],
+        [post_resource],
         :comments,
         { sort_criteria: [{ field: 'id', direction: :desc }] }).keys.collect {|c| c.id}
 

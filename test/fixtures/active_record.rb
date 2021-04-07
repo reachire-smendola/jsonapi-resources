@@ -503,7 +503,7 @@ class Post < ActiveRecord::Base
   belongs_to :writer, class_name: 'Person', foreign_key: 'author_id'
   has_many :comments
   has_and_belongs_to_many :tags, join_table: :posts_tags
-  has_many :special_post_tags, source: :tag
+  has_many :special_post_tags
   has_many :special_tags, through: :special_post_tags, source: :tag
   belongs_to :section
   belongs_to :parent_post, class_name: 'Post', foreign_key: 'parent_post_id'
@@ -517,24 +517,10 @@ class Post < ActiveRecord::Base
     case title
     when "can't destroy me", "can't destroy me either"
       errors.add(:base, "can't destroy me")
-
-      # :nocov:
-      if Rails::VERSION::MAJOR >= 5
-        throw(:abort)
-      else
-        return false
-      end
-      # :nocov:
+      throw(:abort)
     when "locked title"
       errors.add(:title, "is locked")
-
-      # :nocov:
-      if Rails::VERSION::MAJOR >= 5
-        throw(:abort)
-      else
-        return false
-      end
-      # :nocov:
+      throw(:abort)
     end
   end
 end
@@ -605,13 +591,7 @@ class Planet < ActiveRecord::Base
   def check_not_pluto
     # Pluto can't be a planet, so cancel the save
     if name.downcase == 'pluto'
-      # :nocov:
-      if Rails::VERSION::MAJOR >= 5
-        throw(:abort)
-      else
-        return false
-      end
-      # :nocov:
+      throw(:abort)
     end
   end
 end
@@ -745,8 +725,8 @@ class Picture < ActiveRecord::Base
   belongs_to :author, class_name: 'Person', foreign_key: 'author_id'
 
   belongs_to :imageable, polymorphic: true
-  belongs_to :document, -> { where( pictures: { imageable_type: 'Document' } ).eager_load( :pictures ) }, foreign_key: 'imageable_id'
-  belongs_to :product, -> { where( pictures: { imageable_type: 'Product' } ).eager_load( :pictures ) }, foreign_key: 'imageable_id'
+  belongs_to :document, -> { where( pictures: { imageable_type: 'Document' } ) }, foreign_key: 'imageable_id'
+  belongs_to :product, -> { where( pictures: { imageable_type: 'Product' } ) }, foreign_key: 'imageable_id'
 
   has_one :file_properties, as: 'fileable'
 end
@@ -1597,11 +1577,16 @@ class PoroResource < JSONAPI::BasicResource
     end
 
     # Records
-    def find_fragments(filters, options = {})
+    def find_fragments(filters, options)
       fragments = {}
       find_records(filters, options).each do |record|
         rid = JSONAPI::ResourceIdentity.new(resource_klass, record.id)
-        fragments[rid] = JSONAPI::ResourceFragment.new(rid)
+        # We can use either the id or the full resource.
+        # fragments[rid] = JSONAPI::ResourceFragment.new(rid)
+        #  OR
+        # fragments[rid] = JSONAPI::ResourceFragment.new(rid, resource: resource_klass.new(record, options[:context]))
+        # In this case we will use the resource since we already looked up the model instance
+        fragments[rid] = JSONAPI::ResourceFragment.new(rid, resource: resource_klass.new(record, options[:context]))
       end
       fragments
     end
