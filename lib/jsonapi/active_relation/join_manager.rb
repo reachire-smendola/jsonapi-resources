@@ -163,7 +163,8 @@ module JSONAPI
                 relationship: relationship,
                 options: options)
             }
-            rescue
+            rescue => e
+              Rails.logger.error(e.to_s)
               next
             end
 
